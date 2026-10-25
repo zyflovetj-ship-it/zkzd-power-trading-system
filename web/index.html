@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (function(){
+        var img=new Image();
+        img.onload=function(){
+          var c=document.createElement('canvas');c.width=64;c.height=64;
+          c.getContext('2d').drawImage(img,0,0,64,64);
+          var l=document.querySelector('link[rel~="icon"]');
+          if(l){l.type='image/png';l.href=c.toDataURL('image/png');}
+        };
+        img.src='/favicon.svg';
+      })();
+    </script>
+    <meta name="description" content="zkzd电力交易系统 - AI预测与实时交易决策平台" />
+    <title>zkzd电力交易系统</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

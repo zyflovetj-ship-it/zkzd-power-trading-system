@@ -1,0 +1,429 @@
+import apiClient from './client';
+
+// 客户档案管理API接口定义
+// 基于客户档案管理模块设计方案v2.md
+
+// 基础数据类型定义
+export interface Location {
+  type: "Point";
+  coordinates: [number, number]; // [longitude, latitude]
+}
+
+export interface Meter {
+  meter_id: string;
+  multiplier: number;
+}
+
+export interface MeteringPoint {
+  metering_point_id: string;
+  allocation_percentage: number; // 0-100
+  meter: Meter;
+}
+
+export interface UtilityAccount {
+  account_id: string;
+  metering_points: MeteringPoint[];
+}
+
+export interface Customer {
+  id: string;
+  user_name: string;
+  short_name: string;
+  user_type?: string;
+  industry?: string;
+  voltage?: string;
+  region?: string;
+  district?: string;
+  address?: string;
+  location?: Location;
+  contact_person?: string;
+  contact_phone?: string;
+  status: 'prospect' | 'pending' | 'active' | 'suspended' | 'terminated';
+  utility_accounts: UtilityAccount[];
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+export interface CustomerCreate {
+  user_name: string;
+  short_name: string;
+  user_type?: string;
+  industry?: string;
+  voltage?: string;
+  region?: string;
+  district?: string;
+  address?: string;
+  location?: Location;
+  contact_person?: string;
+  contact_phone?: string;
+  utility_accounts?: UtilityAccount[];
+}
+
+export interface CustomerUpdate {
+  user_name?: string;
+  short_name?: string;
+  user_type?: string;
+  industry?: string;
+  voltage?: string;
+  region?: string;
+  district?: string;
+  address?: string;
+  location?: Location;
+  contact_person?: string;
+  contact_phone?: string;
+  utility_accounts?: UtilityAccount[];
+}
+
+// 查询参数类型定义
+// 客户列表项接口（对应后端CustomerListItem）
+export interface CustomerListItem {
+  id: string;
+  user_name: string;
+  user_type?: string;
+  industry?: string;
+  region?: string;
+  status: 'prospect' | 'pending' | 'active' | 'suspended' | 'terminated';
+  metering_point_count: number;
+  contracted_capacity?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerListParams {
+  keyword?: string;
+  user_type?: string;
+  industry?: string;
+  region?: string;
+  status?: 'prospect' | 'pending' | 'active' | 'suspended' | 'terminated';
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+// API接口函数实现
+
+/**
+ * 获取客户列表
+ * @param params 查询参数
+ */
+export const getCustomers = (params?: CustomerListParams) => {
+  return apiClient.get<PaginatedResponse<CustomerListItem>>('/api/v1/customers', { params });
+};
+
+/**
+ * 获取客户详情
+ * @param customerId 客户ID
+ */
+export const getCustomer = (customerId: string) => {
+  return apiClient.get<Customer>(`/api/v1/customers/${customerId}`);
+};
+
+/**
+ * 创建新客户
+ * @param customerData 客户数据
+ */
+export const createCustomer = (customerData: CustomerCreate) => {
+  return apiClient.post<Customer>('/api/v1/customers', customerData);
+};
+
+/**
+ * 更新客户信息
+ * @param customerId 客户ID
+ * @param customerData 更新数据
+ */
+export const updateCustomer = (customerId: string, customerData: CustomerUpdate) => {
+  return apiClient.put<Customer>(`/api/v1/customers/${customerId}`, customerData);
+};
+
+/**
+ * 删除客户
+ * @param customerId 客户ID
+ */
+export const deleteCustomer = (customerId: string) => {
+  return apiClient.delete(`/api/v1/customers/${customerId}`);
+};
+
+// 户号管理接口
+
+/**
+ * 为客户添加户号
+ * @param customerId 客户ID
+ * @param accountData 户号数据
+ */
+export const addCustomerAccount = (customerId: string, accountData: { account_id: string }) => {
+  return apiClient.post<UtilityAccount>(`/api/v1/customers/${customerId}/accounts`, accountData);
+};
+
+/**
+ * 更新客户户号
+ * @param customerId 客户ID
+ * @param accountId 户号ID
+ * @param accountData 更新数据
+ */
+export const updateCustomerAccount = (
+  customerId: string,
+  accountId: string,
+  accountData: { account_id: string }
+) => {
+  return apiClient.put<UtilityAccount>(`/api/v1/customers/${customerId}/accounts/${accountId}`, accountData);
+};
+
+/**
+ * 删除客户户号
+ * @param customerId 客户ID
+ * @param accountId 户号ID
+ */
+export const deleteCustomerAccount = (customerId: string, accountId: string) => {
+  return apiClient.delete(`/api/v1/customers/${customerId}/accounts/${accountId}`);
+};
+
+// 计量点管理接口
+
+/**
+ * 为户号添加计量点
+ * @param customerId 客户ID
+ * @param accountId 户号ID
+ * @param meteringPointData 计量点数据
+ */
+export const addMeteringPoint = (
+  customerId: string,
+  accountId: string,
+  meteringPointData: {
+    metering_point_id: string;
+    allocation_percentage: number;
+    meter: {
+      meter_id: string;
+      multiplier: number;
+    };
+  }
+) => {
+  return apiClient.post<MeteringPoint>(
+    `/api/v1/customers/${customerId}/accounts/${accountId}/metering-points`,
+    meteringPointData
+  );
+};
+
+/**
+ * 更新计量点信息
+ * @param customerId 客户ID
+ * @param accountId 户号ID
+ * @param meteringPointId 计量点ID
+ * @param meteringPointData 更新数据
+ */
+export const updateMeteringPoint = (
+  customerId: string,
+  accountId: string,
+  meteringPointId: string,
+  meteringPointData: {
+    metering_point_id?: string;
+    allocation_percentage?: number;
+    meter?: {
+      meter_id?: string;
+      multiplier?: number;
+    };
+  }
+) => {
+  return apiClient.put<MeteringPoint>(
+    `/api/v1/customers/${customerId}/accounts/${accountId}/metering-points/${meteringPointId}`,
+    meteringPointData
+  );
+};
+
+/**
+ * 删除计量点
+ * @param customerId 客户ID
+ * @param accountId 户号ID
+ * @param meteringPointId 计量点ID
+ */
+export const deleteMeteringPoint = (customerId: string, accountId: string, meteringPointId: string) => {
+  return apiClient.delete(
+    `/api/v1/customers/${customerId}/accounts/${accountId}/metering-points/${meteringPointId}`
+  );
+};
+
+// 数据一致性管理接口
+
+/**
+ * 获取电表信息（用于自动填充）
+ * @param meterId 电表ID
+ */
+export const getMeterInfo = (meterId: string) => {
+  return apiClient.get<{
+    meter_id: string;
+    multiplier: number;
+    [key: string]: any;
+  }>(`/api/v1/meter-info/${meterId}`);
+};
+
+/**
+ * 同步更新电表信息
+ * @param meterId 电表ID
+ * @param updateData 更新数据
+ */
+export const syncUpdateMeter = (
+  meterId: string,
+  updateData: {
+    multiplier: number;
+    sync_all: boolean;
+  }
+) => {
+  return apiClient.post(`/api/v1/meters/${meterId}/sync-update`, updateData);
+};
+
+// ==================== 客户状态转换接口 ====================
+
+/**
+ * 签约操作：将意向客户转换为待生效状态
+ * 状态流转：prospect → pending
+ * @param customerId 客户ID
+ * @param contractId 关联的合同ID（可选）
+ */
+export const signContract = (customerId: string, contractId?: string) => {
+  return apiClient.post<Customer>(`/api/v1/customers/${customerId}/sign-contract`, { contract_id: contractId });
+};
+
+/**
+ * 撤销操作：将待生效客户转换为已终止状态
+ * 状态流转：pending → terminated
+ * @param customerId 客户ID
+ * @param reason 撤销原因（可选）
+ */
+export const cancelContract = (customerId: string, reason?: string) => {
+  return apiClient.post<Customer>(`/api/v1/customers/${customerId}/cancel-contract`, { reason });
+};
+
+/**
+ * 生效操作：将待生效客户转换为执行中状态
+ * 状态流转：pending → active
+ * @param customerId 客户ID
+ */
+export const activate = (customerId: string) => {
+  return apiClient.post<Customer>(`/api/v1/customers/${customerId}/activate`, {});
+};
+
+/**
+ * 暂停操作：将执行中客户转换为已暂停状态
+ * 状态流转：active → suspended
+ * @param customerId 客户ID
+ * @param reason 暂停原因（可选）
+ */
+export const suspend = (customerId: string, reason?: string) => {
+  return apiClient.post<Customer>(`/api/v1/customers/${customerId}/suspend`, { reason });
+};
+
+/**
+ * 恢复操作：将已暂停客户转换为执行中状态
+ * 状态流转：suspended → active
+ * @param customerId 客户ID
+ */
+export const resume = (customerId: string) => {
+  return apiClient.post<Customer>(`/api/v1/customers/${customerId}/resume`, {});
+};
+
+/**
+ * 终止操作：将执行中或已暂停客户转换为已终止状态
+ * 状态流转：active/suspended → terminated
+ * @param customerId 客户ID
+ * @param reason 终止原因（可选）
+ */
+export const terminate = (customerId: string, reason?: string) => {
+  return apiClient.post<Customer>(`/api/v1/customers/${customerId}/terminate`, { reason });
+};
+
+// 常用查询选项
+export const USER_TYPES = [
+  '标准工商业',
+  '大型工商业',
+  '农业用户',
+  '居民用户'
+];
+
+export const INDUSTRIES = [
+  '制造业',
+  '建筑业',
+  '批发和零售业',
+  '交通运输业',
+  '住宿和餐饮业',
+  '信息传输业',
+  '金融业',
+  '房地产业',
+  '租赁和商务服务业',
+  '科学研究和技术服务业',
+  '水利环境和公共设施管理业',
+  '居民服务和其他服务业',
+  '教育',
+  '卫生和社会工作',
+  '文化体育和娱乐业',
+  '公共管理和社会组织',
+  '国际组织'
+];
+
+export const VOLTAGE_LEVELS = [
+  '220V',
+  '380V',
+  '10kV',
+  '35kV',
+  '110kV',
+  '220kV',
+  '500kV'
+];
+
+export const REGIONS = [
+  '南京市',
+  '无锡市',
+  '徐州市',
+  '常州市',
+  '苏州市',
+  '南通市',
+  '连云港市',
+  '淮安市',
+  '盐城市',
+  '扬州市',
+  '镇江市',
+  '泰州市',
+  '宿迁市'
+];
+
+export default {
+  // 基础CRUD
+  getCustomers,
+  getCustomer,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+
+  // 户号管理
+  addCustomerAccount,
+  updateCustomerAccount,
+  deleteCustomerAccount,
+
+  // 计量点管理
+  addMeteringPoint,
+  updateMeteringPoint,
+  deleteMeteringPoint,
+
+  // 数据一致性
+  getMeterInfo,
+  syncUpdateMeter,
+
+  // 状态转换操作
+  signContract,
+  cancelContract,
+  activate,
+  suspend,
+  resume,
+  terminate,
+
+  // 常量
+  USER_TYPES,
+  INDUSTRIES,
+  VOLTAGE_LEVELS,
+  REGIONS
+};

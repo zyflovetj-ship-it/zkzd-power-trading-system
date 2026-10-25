@@ -1,0 +1,51 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ===== Node / 前端 =====
+node_modules/
+dist/
+build/
+.cache/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ===== 运行时与本地数据 =====
+tmp/
+logs/
+*.log
+*.pid
+
+# ===== 环境与密钥 =====
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ===== 编辑器 / 系统 =====
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ===== AI 助手工作目录 =====
+.codeartsdoer/
+.arts/
+
+# ===== 备份文件 =====
+*.bak
+*.bak.*
+*.backup*
+*.original.*

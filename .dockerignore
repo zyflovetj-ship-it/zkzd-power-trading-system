@@ -1,0 +1,18 @@
+# 构建上下文瘦身：排除不需要进镜像的内容
+.git/
+.gitignore
+**/__pycache__/
+**/*.py[cod]
+frontend/node_modules/
+frontend/build/
+web/node_modules/
+web/dist/
+tmp/
+logs/
+*.log
+.env
+.codeartsdoer/
+.arts/
+docs/
+*.md
+!README.md

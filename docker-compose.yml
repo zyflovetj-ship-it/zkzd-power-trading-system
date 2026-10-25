@@ -1,0 +1,51 @@
+# zk-energy 一键部署：前端(nginx) + 后端(FastAPI) + MongoDB
+# 用法：
+#   docker compose up -d --build      # 构建并后台启动
+#   docker compose logs -f backend     # 查看后端日志
+#   docker compose down                # 停止并移除容器
+#
+# 访问：
+#   前端页面:  http://localhost:8080
+#   后端 API:  http://localhost:8007/docs
+#   （注：宿主机 8006 被旧环境 uvicorn 占用，故后端映射到 8007）
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: webapp/Dockerfile
+    restart: unless-stopped
+    # MONGODB 仅填主机名（mongo.py 会自动拼成 mongodb://<host>，默认 27017）
+    environment:
+      - MONGODB=mongo
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8007:8005"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  mongo_data:

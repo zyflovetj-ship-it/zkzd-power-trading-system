@@ -136,7 +136,7 @@ export default function CustomerClusterPage() {
             {isLoading ? '聚类中...' : '执行聚类'}
           </Button>
           {data && (
-            <Button icon={<DownloadOutlined />} onClick={() => window.open(`/api/v1/customer-cluster/export?n_clusters=${nClusters}`, '_blank')}>
+            <Button icon={<DownloadOutlined />} onClick={async () => { try { const { downloadAuthFile } = await import('@/api/client'); await downloadAuthFile('/api/v1/customer-cluster/export?n_clusters=' + nClusters, 'customer_cluster.xlsx'); } catch (e: any) { message.error(e?.response?.data?.detail || e?.message || '导出失败'); } }}>
               导出
             </Button>
           )}

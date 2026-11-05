@@ -29,6 +29,18 @@ async def get_contracts(current_user: dict = Depends(get_current_active_user)):
         )
 
 
+@router.get("/curve", summary="分时持仓曲线（96点：持仓/负荷/敞口）")
+async def get_position_curve(
+    date: Optional[str] = Query(None, description="日期 YYYY-MM-DD，缺省取最新"),
+    current_user: dict = Depends(get_current_active_user),
+):
+    try:
+        return get_service().get_position_curve(date)
+    except Exception as e:
+        logger.error(f"获取持仓曲线失败: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
 @router.get("/export", summary="导出持仓合约数据")
 async def export_contracts(current_user: dict = Depends(get_current_active_user)):
     """导出持仓合约列表。"""

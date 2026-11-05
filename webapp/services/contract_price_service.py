@@ -42,6 +42,10 @@ class ContractPriceService:
             - 48点: period 1 -> 00:30, period 48 -> 24:00
             - 96点: period 1 -> 00:15, period 96 -> 24:00
         """
+        # 时段为「峰/平/谷」等文字标签时，直接返回标签
+        if isinstance(period, str):
+            return period
+
         if total_periods == 24:
             # 24点: 每小时一个时段
             # period 1 -> 01:00, period 24 -> 24:00
@@ -229,17 +233,25 @@ class ContractPriceService:
         if overall_doc and overall_doc.get("periods"):
             # 确定时段总数用于计算时间字符串
             total_periods = len(overall_doc["periods"])
-            for p in overall_doc["periods"]:
+            for idx_p, p in enumerate(overall_doc["periods"], start=1):
                 period = p.get("period", 0)
                 price = p.get("price_yuan_per_mwh")
                 quantity = p.get("quantity_mwh")
-                if period and price is not None:
-                    contract_curves.append(CurvePoint(
-                        period=period,
-                        time_str=self._period_to_time_str(period, total_periods),
-                        price=round(price, 2),
-                        quantity=round(quantity, 2) if quantity else None
-                    ))
+                if not period or price is None:
+                    continue
+                if isinstance(period, (int, float)):
+                    ped = int(period)
+                    time_label = self._period_to_time_str(ped, total_periods)
+                else:
+                    # 时段为「峰/平/谷」等文字标签时，直接作为 time_str，序号取枚举值
+                    ped = idx_p
+                    time_label = str(period)
+                contract_curves.append(CurvePoint(
+                    period=ped,
+                    time_str=time_label,
+                    price=round(price, 2),
+                    quantity=round(quantity, 2) if quantity else None
+                ))
         contract_curves.sort(key=lambda x: x.period)
         logger.info(f"[STEP 3] 构建合同曲线完成，共 {len(contract_curves)} 个点")
 

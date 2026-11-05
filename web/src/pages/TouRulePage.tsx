@@ -4,6 +4,13 @@ import type { ColumnsType } from 'antd/es/table';
 import { getTouSummary, getTouVersions, TOU_PERIOD_LABEL, type TouSummary } from '@/api/tou';
 
 const PERIOD_COLOR: Record<string, string> = {
+  // 中文（后端 tou_rules 实际使用的时段名）
+  尖峰: '#820014',
+  峰: '#cf1322',
+  平: '#595959',
+  谷: '#08979c',
+  深谷: '#0050b3',
+  // 英文/编码（兼容旧数据）
   peak: '#cf1322',
   P: '#cf1322',
   sharp: '#820014',
@@ -14,6 +21,20 @@ const PERIOD_COLOR: Record<string, string> = {
   V: '#08979c',
   deep: '#0050b3',
 };
+
+const PERIOD_ORDER = ['尖峰', '峰', '平', '谷', '深谷'];
+const MONTH_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+
+function fmtMinute(total: number): string {
+  if (total === 1440) return '24:00';
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+function pointLabel(i: number): string {
+  return fmtMinute(i * 15) + '-' + fmtMinute((i + 1) * 15);
+}
 
 export default function TouRulePage() {
   const { message } = App.useApp();
@@ -59,6 +80,46 @@ export default function TouRulePage() {
 
   const coefData = summary ? Object.entries(summary.coefficients) : [];
 
+  const expandRows = useMemo(() => {
+    if (!summary) return [];
+    return Array.from({ length: 96 }, (_, i) => {
+      const row: Record<string, unknown> = { idx: i, time: pointLabel(i) };
+      MONTH_KEYS.forEach((m) => {
+        row['m' + m] = summary.months?.[m]?.[i] ?? '';
+      });
+      return row;
+    });
+  }, [summary]);
+
+  const expandColumns: ColumnsType<Record<string, unknown>> = [
+    { title: '时段', dataIndex: 'time', width: 108, fixed: 'left' },
+    ...MONTH_KEYS.map((m) => ({
+      title: m + '月',
+      dataIndex: 'm' + m,
+      width: 64,
+      align: 'center' as const,
+      render: (v: string) =>
+        v ? (
+          <span
+            style={{
+              display: 'inline-block',
+              minWidth: 34,
+              padding: '0 4px',
+              borderRadius: 3,
+              background: PERIOD_COLOR[v] ?? '#595959',
+              color: '#fff',
+              fontSize: 12,
+              lineHeight: '18px',
+            }}
+          >
+            {TOU_PERIOD_LABEL[v] ?? v}
+          </span>
+        ) : (
+          '-'
+        ),
+    })),
+  ];
+
   return (
     <div>
       <Card style={{ marginBottom: 16 }}>
@@ -91,6 +152,7 @@ export default function TouRulePage() {
           <Empty description="暂无分时电价数据（该模块为只读，规则由数据脚本维护）" />
         </Card>
       ) : (
+        <>
         <Row gutter={16}>
           <Col xs={24} lg={10}>
             <Card title="峰谷系数" style={{ marginBottom: 16 }}>
@@ -134,15 +196,30 @@ export default function TouRulePage() {
                 ))}
               </div>
               <div style={{ marginTop: 12 }}>
-                {Object.keys(PERIOD_COLOR).map((k) => (
-                  <Tag key={k} color={PERIOD_COLOR[k]} style={{ marginBottom: 4 }}>
-                    {TOU_PERIOD_LABEL[k] ?? k}
-                  </Tag>
-                ))}
+                {PERIOD_ORDER.filter((k) => counts[k])
+                  .concat(Object.keys(counts).filter((k) => !PERIOD_ORDER.includes(k)))
+                  .map((k) => (
+                    <Tag key={k} color={PERIOD_COLOR[k] ?? '#595959'} style={{ marginBottom: 4 }}>
+                      {TOU_PERIOD_LABEL[k] ?? k} {counts[k]}点
+                    </Tag>
+                  ))}
               </div>
             </Card>
           </Col>
         </Row>
+
+        <Card title="96 点时段展开表（12 个月对照）" style={{ marginTop: 16 }}>
+          <Table
+            rowKey="idx"
+            size="small"
+            bordered
+            pagination={false}
+            scroll={{ x: 'max-content', y: 520 }}
+            dataSource={expandRows}
+            columns={expandColumns}
+          />
+        </Card>
+        </>
       )}
     </div>
   );

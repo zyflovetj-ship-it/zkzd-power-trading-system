@@ -40,22 +40,15 @@ class ContractCurveService:
         Returns:
             合同曲线数据
         """
-        # 这里简化处理，实际应该调用优化算法
-        # 暂时从数据库中查找已生成的合同曲线
-        collection = self.db["contract_curves"]
+        # 真实分解：合约电量 → 月 → 日 → 96 点（口径见 ContractDecomposeService）
+        from webapp.services.contract_decompose_service import ContractDecomposeService
 
-        # 查找匹配的合同曲线
-        curve = collection.find_one({
-            "customer_id": customer_id,
-            "contract_month.year": target_year,
-            "contract_month.month": target_month,
-            "optimization_params.objective": optimization_params.get("objective", "balanced"),
-            "status": "active"
-        }, sort=[("created_at", -1)])
-
-        if not curve:
-            raise ValueError(f"未找到客户 {customer_id} 在 {target_year}-{target_month:02d} 的合同曲线")
-
+        curve = ContractDecomposeService(self.db).decompose(
+            customer_id=customer_id,
+            year=target_year,
+            month=target_month,
+            params=optimization_params or {},
+        )
         return self._format_curve_response(curve)
 
     def get_contract_curve(
@@ -103,6 +96,8 @@ class ContractCurveService:
             return self._calculate_price_sensitivity(curve)
         elif scenario_type == "load_sensitivity":
             return self._calculate_load_sensitivity(curve)
+        elif scenario_type == "coverage_sensitivity":
+            return self._calculate_coverage_sensitivity(curve)
         else:
             raise ValueError(f"不支持的情景类型: {scenario_type}")
 
@@ -159,37 +154,96 @@ class ContractCurveService:
             "status": curve.get("status", "active")
         }
 
+    @staticmethod
+    def _base(curve: Dict[str, Any]) -> Dict[str, float]:
+        """取基准量：合约电量 / 需求 / 敞口 / 现货均价 / 合约均价。"""
+        sm = curve.get("summary") or {}
+        pos = float(sm.get("total_volume_mwh") or 0)
+        demand = float(sm.get("total_demand") or 0)
+        spot = float(sm.get("spot_avg_price") or 0)
+        blended = float(sm.get("blended_cost") or 0)
+        gap = float(sm.get("gap_energy_mwh"))
+        if gap is None or gap == 0:
+            gap = demand - pos
+        contract_cost = pos * blended
+        spot_cost = gap * spot
+        return {"pos": pos, "demand": demand, "gap": gap, "spot": spot,
+                "blended": blended, "contract_cost": contract_cost,
+                "base_cost": contract_cost + spot_cost}
+
     def _calculate_price_sensitivity(self, curve: Dict[str, Any]) -> Dict[str, Any]:
-        """计算价格敏感度"""
-        base_cost = curve["summary"]["total_cost"]
-        spot_cost = curve["summary"]["spot_cost"]
-
-        price_sensitivity = []
-        for deviation in [-0.2, -0.1, 0.0, 0.1, 0.2]:
-            cost_change = deviation * spot_cost
-            price_sensitivity.append({
-                "price_deviation": deviation,
-                "total_cost": round(base_cost + cost_change, 2),
-                "cost_change": round(cost_change, 2)
+        """现货价格敏感性：仅敞口部分随现货价变动重算。"""
+        b = self._base(curve)
+        out = []
+        for dev in (-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3):
+            new_spot = b["spot"] * (1 + dev)
+            spot_cost = b["gap"] * new_spot
+            total = b["contract_cost"] + spot_cost
+            out.append({
+                "price_deviation": dev,
+                "spot_price": round(new_spot, 2),
+                "spot_cost": round(spot_cost, 2),
+                "total_cost": round(total, 2),
+                "cost_change": round(total - b["base_cost"], 2),
             })
-
-        return {"scenario_type": "price_sensitivity", "data": price_sensitivity}
+        return {
+            "scenario_type": "price_sensitivity",
+            "base": {"spot_avg_price": round(b["spot"], 3), "gap_energy_mwh": round(b["gap"], 4),
+                     "contract_cost": round(b["contract_cost"], 2),
+                     "base_total_cost": round(b["base_cost"], 2)},
+            "data": out,
+        }
 
     def _calculate_load_sensitivity(self, curve: Dict[str, Any]) -> Dict[str, Any]:
-        """计算负荷敏感度"""
-        base_cost = curve["summary"]["total_cost"]
-        total_demand = curve["summary"]["total_demand"]
-        blended_cost = curve["summary"]["blended_cost"]
-
-        load_sensitivity = []
-        for deviation, name in [(-0.15, "低负荷情景"), (0.0, "基准情景"), (0.15, "高负荷情景")]:
-            load_change = total_demand * deviation
-            cost_change = load_change * blended_cost
-            load_sensitivity.append({
-                "load_deviation": deviation,
+        """负荷敏感性：负荷变动直接改变敞口电量，从而改变成本。"""
+        b = self._base(curve)
+        out = []
+        for dev, name in ((-0.15, "低负荷"), (-0.10, "偏低负荷"), (0.0, "基准"),
+                          (0.10, "偏高负荷"), (0.15, "高负荷")):
+            new_demand = b["demand"] * (1 + dev)
+            gap = new_demand - b["pos"]
+            total = b["contract_cost"] + gap * b["spot"]
+            out.append({
+                "load_deviation": dev,
                 "scenario_name": name,
-                "total_cost": round(base_cost + cost_change, 2),
-                "cost_change": round(cost_change, 2)
+                "total_demand": round(new_demand, 2),
+                "gap_energy_mwh": round(gap, 2),
+                "coverage_ratio": round(b["pos"] / new_demand, 4) if new_demand else None,
+                "total_cost": round(total, 2),
+                "cost_change": round(total - b["base_cost"], 2),
             })
+        return {"scenario_type": "load_sensitivity",
+                "base": {"total_demand": round(b["demand"], 2),
+                         "position_mwh": round(b["pos"], 2),
+                         "spot_avg_price": round(b["spot"], 3),
+                         "blended_cost": round(b["blended"], 3)},
+                "data": out}
 
-        return {"scenario_type": "load_sensitivity", "data": load_sensitivity}
+    def _calculate_coverage_sensitivity(self, curve: Dict[str, Any]) -> Dict[str, Any]:
+        """覆盖率敏感性：合约覆盖率 0%~120% 下的组合成本，并给出最低成本覆盖率。"""
+        b = self._base(curve)
+        demand = b["demand"]
+        out = []
+        best = None
+        for cov in [0.0, 0.2, 0.4, 0.6, 0.8, 0.9, 1.0, 1.1, 1.2]:
+            pos = demand * cov
+            gap = demand - pos
+            total = pos * b["blended"] + gap * b["spot"]
+            row = {
+                "coverage": cov,
+                "position_mwh": round(pos, 2),
+                "gap_energy_mwh": round(gap, 2),
+                "total_cost": round(total, 2),
+                "avg_price": round(total / demand, 3) if demand else None,
+            }
+            out.append(row)
+            if best is None or row["total_cost"] < best["total_cost"]:
+                best = row
+        return {
+            "scenario_type": "coverage_sensitivity",
+            "base": {"total_demand": round(demand, 2),
+                     "blended_cost": round(b["blended"], 3),
+                     "spot_avg_price": round(b["spot"], 3)},
+            "optimal": best,
+            "data": out,
+        }

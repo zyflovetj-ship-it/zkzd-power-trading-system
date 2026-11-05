@@ -24,6 +24,7 @@ export interface CustomerListItem {
   user_name: string;
   short_name?: string;
   user_type?: string;
+  electricity_type?: string;
   industry?: string;
   region?: string;
   status: CustomerStatus;
@@ -39,6 +40,7 @@ export interface CustomerDetail {
   user_name: string;
   short_name?: string;
   user_type?: string;
+  electricity_type?: string;
   industry?: string;
   voltage?: string;
   region?: string;
@@ -58,6 +60,7 @@ export interface CustomerCreate {
   user_name: string;
   short_name?: string;
   user_type?: string;
+  electricity_type?: string;
   industry?: string;
   voltage?: string;
   region?: string;
@@ -94,6 +97,9 @@ export const INDUSTRIES = [
   '居民服务和其他服务业', '教育', '卫生和社会工作', '文化体育和娱乐业', '公共管理和社会组织', '国际组织',
 ];
 export const VOLTAGE_LEVELS = ['220V', '380V', '10kV', '35kV', '110kV', '220kV', '500kV'];
+
+/** 用电类型（代购电峰谷系数口径，测算引擎识别用） */
+export const ELECTRICITY_TYPES = ['两部制', '单一制-100千伏安及以上', '单一制-100千伏安以下'];
 export const REGIONS = [
   '南京市', '无锡市', '徐州市', '常州市', '苏州市', '南通市', '连云港市', '淮安市', '盐城市', '扬州市', '镇江市', '泰州市', '宿迁市',
 ];

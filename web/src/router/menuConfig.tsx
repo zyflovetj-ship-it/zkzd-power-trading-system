@@ -53,6 +53,7 @@ export const proLayoutRoute: AppRoute = {
       routes: [
         { path: '/price-analysis/spot-market', name: '现货价格分析' },
         { path: '/price-analysis/spot-trend', name: '现货趋势分析' },
+        { path: '/price-analysis/bidding-space', name: '竞价空间' },
         { path: '/price-analysis/mid-long-term', name: '中长期价格分析' },
         { path: '/price-analysis/mid-long-trend', name: '中长期趋势分析' },
       ],
@@ -74,6 +75,7 @@ export const proLayoutRoute: AppRoute = {
       icon: <SwapOutlined />,
       routes: [
         { path: '/trading-strategy/contract-curve', name: '合同曲线生成' },
+        { path: '/trading-strategy/energy-block', name: '能量块申报' },
         { path: '/trading-strategy/monthly', name: '月度交易策略' },
         { path: '/trading-strategy/d-2', name: 'D-2交易策略' },
         { path: '/trading-strategy/day-ahead', name: '日前交易策略' },
@@ -106,10 +108,40 @@ export const proLayoutRoute: AppRoute = {
       name: '基础数据',
       icon: <DatabaseOutlined />,
       routes: [
-        { path: '/basic-data/grid-price', name: '国网代购电价格' },
-        { path: '/basic-data/tou-definition', name: '分时电价划分' },
-        { path: '/basic-data/retail-packages', name: '零售套餐管理' },
-        { path: '/basic-data/load-validation', name: '负荷数据校验' },
+        {
+          path: '/basic-data/market-rules',
+          name: '市场与规则',
+          routes: [
+            { path: '/basic-data/grid-price', name: '国网代购电价格' },
+            { path: '/basic-data/tou-definition', name: '分时电价划分' },
+            { path: '/basic-data/spot-prices', name: '现货价格导入' },
+          ],
+        },
+        {
+          path: '/basic-data/customer-data',
+          name: '客户数据',
+          routes: [
+            { path: '/basic-data/load-data', name: '负荷数据导入' },
+            { path: '/basic-data/bill-verification', name: '核查联测算' },
+            { path: '/basic-data/load-validation', name: '负荷数据校验' },
+          ],
+        },
+        {
+          path: '/basic-data/contract-cost',
+          name: '合同与成本',
+          routes: [
+            { path: '/basic-data/mid-long-contracts', name: '中长期合同量价' },
+            { path: '/basic-data/cost-basis', name: '成本基线' },
+          ],
+        },
+        {
+          path: '/basic-data/package-quote',
+          name: '套餐与报价',
+          routes: [
+            { path: '/basic-data/retail-packages', name: '零售套餐管理' },
+            { path: '/basic-data/package-annual', name: '套餐年度测算' },
+          ],
+        },
       ],
     },
     {

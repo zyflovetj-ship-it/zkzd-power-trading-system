@@ -11,7 +11,11 @@ import statistics
 from bson import json_util
 import json
 
-from webapp.api import v1_retail_packages, v1_customers, v1_retail_contracts
+from webapp.api import v1_retail_packages, v1_customers, v1_retail_contracts, v1_sgcc, v1_bidding_space, v1_energy_block
+from webapp.api import v1_mid_long_contracts
+from webapp.api import v1_load_data, v1_bills
+from webapp.api import v1_spot_prices
+from webapp.api import v1_cost_basis
 from webapp.api import v1_forecast_base_data
 from webapp.api import v1_trend_analysis
 from webapp.api import v1_contract_price
@@ -26,6 +30,14 @@ from webapp.services.tou_service import get_tou_rule_by_date, get_tou_versions, 
 # 创建一个API路由器
 router = APIRouter(prefix="/api/v1", tags=["v1"])
 router.include_router(v1_retail_packages.router)
+router.include_router(v1_sgcc.router)  # 国网代购电价导入
+router.include_router(v1_bidding_space.router)  # 竞价空间
+router.include_router(v1_energy_block.router)  # 能量块申报
+router.include_router(v1_mid_long_contracts.router)  # 中长期合同量价管理
+router.include_router(v1_load_data.router)  # 96点负荷导入
+router.include_router(v1_bills.router)  # 核查联批量导入+测算
+router.include_router(v1_spot_prices.router)  # 现货价格导入
+router.include_router(v1_cost_basis.router)  # 成本基线（事前综合购电成本）
 router.include_router(v1_customers.router)  # 客户管理路由
 router.include_router(v1_retail_contracts.router)  # 零售合同管理路由
 router.include_router(v1_forecast_base_data.router)  # 预测基础数据路由
@@ -590,16 +602,30 @@ async def calculate_package_price(data: dict = Body(...)):
     volume_mwh = data.get("volume_mwh")
 
     service = PackageService(DATABASE)
-    package = await service.get_package(package_id)
-    if not package:
-        raise HTTPException(status_code=404, detail="Package not found")
+    try:
+        package = service.get_by_id(package_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-    if package['pricing_mode'] == 'fixed_linked':
+    # 定价模式来自模型定义（RetailPackage 本身没有 pricing_mode 字段）
+    model_code = package.get("model_code") or ""
+    mode = None
+    try:
+        from webapp.services.pricing_model_service import pricing_model_service
+        model = pricing_model_service.get_pricing_model(model_code)
+        if model:
+            mode = model.get("pricing_mode")
+    except Exception:
+        mode = None
+    if not mode:
+        mode = "price_spread" if "price_spread" in model_code else "fixed_linked"
+
+    if mode in ("fixed_linked", "single_comprehensive"):
         return PricingEngine.calculate_fixed_linked_price(package, date, time_period, volume_mwh)
-    elif package['pricing_mode'] == 'price_spread':
+    elif str(mode).startswith("price_spread"):
         return PricingEngine.calculate_price_spread_price(package, date, time_period, volume_mwh)
     else:
-        raise HTTPException(status_code=400, detail="Invalid pricing mode")
+        raise HTTPException(status_code=400, detail=f"Unsupported pricing mode: {mode}")
 
 # --- 公开路由，无需认证 ---
 public_router = APIRouter(prefix="/api/v1", tags=["v1-public"])

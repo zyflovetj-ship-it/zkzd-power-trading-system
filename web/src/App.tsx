@@ -9,6 +9,12 @@ import { flatRoutes } from './router/menuConfig';
 import CustomerPage from './pages/CustomerPage';
 import ContractPage from './pages/ContractPage';
 import PackagePage from './pages/PackagePage';
+import PackageAnnualCalcPage from './pages/PackageAnnualCalcPage';
+import MidLongContractPage from './pages/MidLongContractPage';
+import LoadDataPage from './pages/LoadDataPage';
+import BillVerificationPage from './pages/BillVerificationPage';
+import SpotPricePage from './pages/SpotPricePage';
+import CostBasisPage from './pages/CostBasisPage';
 import SgccPricePage from './pages/SgccPricePage';
 import TouRulePage from './pages/TouRulePage';
 import RpaMonitorPage from './pages/RpaMonitorPage';
@@ -19,6 +25,7 @@ import LoadForecastAccuracyPage from './pages/LoadForecastAccuracyPage';
 import LoadForecastLongTermPage from './pages/LoadForecastLongTermPage';
 import SpotMarketPage from './pages/SpotMarketPage';
 import SpotTrendPage from './pages/SpotTrendPage';
+import BiddingSpacePage from './pages/BiddingSpacePage';
 import MidLongPricePage from './pages/MidLongPricePage';
 import MidLongTrendPage from './pages/MidLongTrendPage';
 import PriceForecastBaselinePage from './pages/PriceForecastBaselinePage';
@@ -26,6 +33,7 @@ import PriceForecastD2Page from './pages/PriceForecastD2Page';
 import PriceForecastDayAheadPage from './pages/PriceForecastDayAheadPage';
 import PriceForecastMonthlyPage from './pages/PriceForecastMonthlyPage';
 import ContractCurvePage from './pages/ContractCurvePage';
+import EnergyBlockPage from './pages/EnergyBlockPage';
 import MonthlyStrategyPage from './pages/MonthlyStrategyPage';
 import D2StrategyPage from './pages/D2StrategyPage';
 import DayAheadStrategyPage from './pages/DayAheadStrategyPage';
@@ -82,6 +90,14 @@ const pageMap: Record<string, ReactNode> = {
   '/basic-data/load-validation': <LoadValidationPage />,
   '/system-settings/user-permissions': <UserPermissionsPage />,
   '/system-settings/data-transfer': <DataTransferPage />,
+  '/price-analysis/bidding-space': <BiddingSpacePage />,
+  '/trading-strategy/energy-block': <EnergyBlockPage />,
+  '/basic-data/package-annual': <PackageAnnualCalcPage />,
+  '/basic-data/mid-long-contracts': <MidLongContractPage />,
+  '/basic-data/load-data': <LoadDataPage />,
+  '/basic-data/bill-verification': <BillVerificationPage />,
+  '/basic-data/spot-prices': <SpotPricePage />,
+  '/basic-data/cost-basis': <CostBasisPage />,
   '/system-settings/model-parameters': <ModelParametersPage />,
 };
 

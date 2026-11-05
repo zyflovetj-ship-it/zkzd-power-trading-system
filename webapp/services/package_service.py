@@ -195,6 +195,16 @@ class PackageService:
         elif new_status == "archived":
             update_fields["archived_at"] = datetime.utcnow()
 
+        # 3.5 激活前风险闸门：参数越界且未获法定代表人确认 → 拒绝激活
+        if new_status == "active":
+            from webapp.services.risk_warning_service import RiskWarningService
+            ev = RiskWarningService(self.db).evaluate(existing_doc)
+            if ev["requires_legal_confirm"]:
+                detail = "；".join(
+                    "%s 要求 %s，当前 %s" % (i["name"], i["rule"], i["value"]) for i in ev["items"]
+                )
+                raise ValueError("RISK_WARNING::" + detail)
+
         # 4. 执行更新
         result = self.collection.update_one(
             {"_id": ObjectId(package_id)},

@@ -10,6 +10,7 @@ import {
   INDUSTRIES,
   REGIONS,
   USER_TYPES,
+  ELECTRICITY_TYPES,
   VOLTAGE_LEVELS,
   activateCustomer,
   cancelContract,
@@ -44,6 +45,7 @@ const STATUS_LABEL: Record<CustomerStatus, string> = {
 const searchFields: SearchField[] = [
   { name: 'keyword', label: '关键字', type: 'text', placeholder: '客户名称' },
   { name: 'user_type', label: '用户类型', type: 'select', options: USER_TYPES.map((v) => ({ label: v, value: v })) },
+  { name: 'electricity_type', label: '用电类型（测算系数）', type: 'select', options: ELECTRICITY_TYPES.map((v) => ({ label: v, value: v })) },
   { name: 'industry', label: '行业', type: 'select', options: INDUSTRIES.map((v) => ({ label: v, value: v })) },
   { name: 'region', label: '地区', type: 'select', options: REGIONS.map((v) => ({ label: v, value: v })) },
   { name: 'status', label: '状态', type: 'select', options: CUSTOMER_STATUS_OPTIONS },
@@ -63,6 +65,7 @@ export default function CustomerPage() {
     { name: 'user_name', label: '客户名称', type: 'text', required: true, span: 12 },
     { name: 'short_name', label: '简称', type: 'text', span: 12 },
     { name: 'user_type', label: '用户类型', type: 'select', options: USER_TYPES.map((v) => ({ label: v, value: v })), span: 12 },
+    { name: 'electricity_type', label: '用电类型（测算系数）', type: 'select', options: ELECTRICITY_TYPES.map((v) => ({ label: v, value: v })), span: 12 },
     { name: 'industry', label: '行业', type: 'select', options: INDUSTRIES.map((v) => ({ label: v, value: v })), span: 12 },
     { name: 'voltage', label: '电压等级', type: 'select', options: VOLTAGE_LEVELS.map((v) => ({ label: v, value: v })), span: 12 },
     { name: 'region', label: '地区', type: 'select', options: REGIONS.map((v) => ({ label: v, value: v })), span: 12 },

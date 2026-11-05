@@ -32,3 +32,32 @@ export function getSgccPdfUrl(month: string): string {
   const base = apiClient.defaults.baseURL ?? '';
   return `${base}/api/v1/prices/sgcc/${encodeURIComponent(month)}/pdf`;
 }
+
+export interface MissingMonthsResult {
+  year: number;
+  total: number;
+  present: number;
+  missing: string[];
+}
+
+/** 查询某年已入库/缺失月份 */
+export async function getMissingMonths(year: number): Promise<MissingMonthsResult> {
+  const r = await apiClient.get('/api/v1/prices/sgcc/missing-months', { params: { year } });
+  return r.data;
+}
+
+/** 上传 Excel 导入代购电价（代购电情况模板 / 月份+代购价格两列） */
+export async function importSgccExcel(file: File, year: number): Promise<unknown> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await apiClient.post('/api/v1/prices/sgcc/import-excel', fd, { params: { year } });
+  return r.data;
+}
+
+/** 上传 PDF 公告（存档并尽力解析价格） */
+export async function importSgccPdf(file: File, month: string): Promise<unknown> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await apiClient.post('/api/v1/prices/sgcc/import-pdf', fd, { params: { month } });
+  return r.data;
+}

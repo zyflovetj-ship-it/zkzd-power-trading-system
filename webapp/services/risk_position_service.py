@@ -75,3 +75,115 @@ class RiskPositionService:
             if v is not None:
                 total += float(v) * HOURS_PER_POINT
         return total
+
+    # ------------------------------------------------------------------
+    # 分时持仓曲线（96 点）：合约分解持仓 vs 实际负荷 vs 敞口
+    # ------------------------------------------------------------------
+    def get_position_curve(self, delivery_date: str = None) -> Dict[str, Any]:
+        """按日输出 96 点持仓敞口。
+
+        持仓来源：contract_curves（合约分解后的 daily_contracts.points）
+        负荷来源：user_load_data（96 点实际负荷，MWh）
+        敞口 = 负荷 − 持仓（正=需现货补，负=余量可卖）
+        """
+        warnings: List[str] = []
+        date_str = delivery_date or self._latest_curve_date()
+        if not date_str:
+            return {"date": None, "points": [], "summary": {}, "warnings": ["无可用合约曲线或负荷数据"]}
+
+        position = [0.0] * 96
+        hit = 0
+        for cv in self.db["contract_curves"].find({"status": "active"}, {"daily_contracts": 1}):
+            for dc in cv.get("daily_contracts") or []:
+                if dc.get("date") != date_str:
+                    continue
+                pts = dc.get("points") or []
+                if len(pts) != 96:
+                    continue
+                hit += 1
+                for i, v in enumerate(pts):
+                    position[i] += float(v or 0.0)
+        if hit == 0:
+            warnings.append("该日无合约分解曲线（请先在「合同曲线生成」中生成）")
+
+        load = [0.0] * 96
+        start = datetime.strptime(date_str, "%Y-%m-%d")
+        end = start + timedelta(days=1)
+        for d in self.db.user_load_data.find(
+            {"timestamp": {"$gte": start, "$lt": end}}, {"timestamp": 1, "value": 1, "_id": 0}
+        ):
+            ts, v = d.get("timestamp"), d.get("value")
+            if ts is None or v is None:
+                continue
+            minutes = ts.hour * 60 + ts.minute
+            idx = 95 if minutes == 0 else (minutes // 15) - 1
+            idx = max(0, min(95, idx))
+            load[idx] += float(v) * HOURS_PER_POINT / 1000.0
+        if sum(load) <= 0:
+            warnings.append("该日无实际负荷数据")
+
+        tou = {}
+        try:
+            from webapp.services.tou_service import get_tou_rule_by_date
+            tou = get_tou_rule_by_date(start)
+        except Exception:
+            tou = {}
+
+        points = []
+        by_period = {"peak": {"position": 0.0, "load": 0.0}, "flat": {"position": 0.0, "load": 0.0},
+                     "valley": {"position": 0.0, "load": 0.0}}
+        for i in range(96):
+            ts = "%02d:%02d" % (i // 4, (i % 4) * 15)
+            seg = tou.get(ts, "平段")
+            key = "peak" if "峰" in seg else ("valley" if "谷" in seg else "flat")
+            by_period[key]["position"] += position[i]
+            by_period[key]["load"] += load[i]
+            points.append({
+                "time_str": ts,
+                "position_mwh": round(position[i], 6),
+                "load_mwh": round(load[i], 6),
+                "gap_mwh": round(load[i] - position[i], 6),
+            })
+
+        total_pos = sum(position)
+        total_load = sum(load)
+        summary = {
+            "date": date_str,
+            "position_mwh": round(total_pos, 4),
+            "load_mwh": round(total_load, 4),
+            "gap_mwh": round(total_load - total_pos, 4),
+            "coverage_ratio": round(total_pos / total_load, 4) if total_load else None,
+            "by_period": {
+                k: {
+                    "position_mwh": round(v["position"], 4),
+                    "load_mwh": round(v["load"], 4),
+                    "coverage_ratio": round(v["position"] / v["load"], 4) if v["load"] else None,
+                } for k, v in by_period.items()
+            },
+        }
+        return {"date": date_str, "points": points, "summary": summary, "warnings": warnings}
+
+    def _latest_curve_date(self):
+        """取合约曲线中最新的一天（没有则回退到负荷最新日期）。"""
+        cv = self.db["contract_curves"].find_one({"status": "active"}, sort=[("created_at", -1)])
+        if cv:
+            dates = sorted(
+                {d.get("date") for d in (cv.get("daily_contracts") or []) if d.get("date")},
+                reverse=True,
+            )
+            # 优先取「既在合约曲线里、又有实际负荷」的最近一天
+            for d in dates:
+                try:
+                    start = datetime.strptime(d, "%Y-%m-%d")
+                except ValueError:
+                    continue
+                # 要求当天负荷点足够完整（>=90 点），避免取到残缺日
+                if self.db.user_load_data.count_documents(
+                    {"timestamp": {"$gte": start, "$lt": start + timedelta(days=1)}}
+                ) >= 90:
+                    return d
+            if dates:
+                return dates[0]
+        doc = self.db.user_load_data.find_one({}, sort=[("timestamp", -1)])
+        ts = (doc or {}).get("timestamp")
+        return ts.strftime("%Y-%m-%d") if isinstance(ts, datetime) else None

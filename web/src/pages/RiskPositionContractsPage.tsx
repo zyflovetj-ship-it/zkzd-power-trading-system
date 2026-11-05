@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Table, Tag } from 'antd';
+import { Alert, Card, Space, Statistic, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { EChartsOption } from 'echarts';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { KpiCards } from '@/components/charts/KpiCards';
 import { baseGrid, baseLegend, baseTooltip, CHART_COLORS } from '@/components/charts/chartTheme';
-import { getRiskPositionContracts, type PositionContract } from '@/api/risk';
+import { getPositionCurve, getRiskPositionContracts, type PositionContract } from '@/api/risk';
 
 function daysToEnd(end: string): number {
   const diff = new Date(end).getTime() - Date.now();
@@ -17,6 +17,30 @@ export default function RiskPositionContractsPage() {
   const q = useQuery({ queryKey: ['riskPositionContracts'], queryFn: () => getRiskPositionContracts() });
   const isLoading = q.isLoading;
   const contracts = q.data?.contracts ?? [];
+
+  const curveQ = useQuery({ queryKey: ['positionCurve'], queryFn: () => getPositionCurve() });
+  const curve = curveQ.data;
+  const curvePoints = curve?.points ?? [];
+
+  const curveOption: EChartsOption = useMemo(
+    () => ({
+      color: CHART_COLORS,
+      tooltip: { ...baseTooltip, trigger: 'axis' },
+      legend: { ...baseLegend, data: ['持仓电量', '实际负荷', '敞口(负荷-持仓)'] },
+      grid: { ...baseGrid, right: 70 },
+      xAxis: { type: 'category', data: curvePoints.map((c) => c.time_str), axisLabel: { interval: 7 } },
+      yAxis: [
+        { type: 'value', name: '电量(MWh)' },
+        { type: 'value', name: '敞口(MWh)' },
+      ],
+      series: [
+        { name: '持仓电量', type: 'line', smooth: true, showSymbol: false, data: curvePoints.map((c) => c.position_mwh) },
+        { name: '实际负荷', type: 'line', smooth: true, showSymbol: false, data: curvePoints.map((c) => c.load_mwh) },
+        { name: '敞口(负荷-持仓)', type: 'bar', yAxisIndex: 1, data: curvePoints.map((c) => c.gap_mwh), itemStyle: { opacity: 0.45 } },
+      ],
+    }),
+    [curvePoints],
+  );
 
   const expiringSoon = contracts.filter((c) => {
     const d = daysToEnd(c.endDate);
@@ -97,6 +121,32 @@ export default function RiskPositionContractsPage() {
   return (
     <div>
       <KpiCards loading={isLoading} items={kpiItems} />
+
+      {curve?.warnings?.length ? (
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Alert type="warning" showIcon message={curve.warnings.join('；')} />
+        </Card>
+      ) : null}
+
+      <Card size="small" title="当日分时持仓概览" style={{ marginBottom: 16 }}>
+        <Space size="large" wrap>
+          <Statistic title="持仓电量(MWh)" value={curve?.summary?.position_mwh ?? 0} precision={2} />
+          <Statistic title="实际负荷(MWh)" value={curve?.summary?.load_mwh ?? 0} precision={2} />
+          <Statistic title="敞口(MWh)" value={curve?.summary?.gap_mwh ?? 0} precision={2} />
+          <Statistic
+            title="覆盖率"
+            value={curve?.summary?.coverage_ratio == null ? '-' : (curve.summary.coverage_ratio * 100).toFixed(1)}
+            suffix="%"
+          />
+        </Space>
+      </Card>
+
+      <ChartCard
+        title={'分时持仓 vs 实际负荷（' + (curve?.date ?? '-') + '）'}
+        option={curveOption}
+        loading={curveQ.isLoading}
+        height={360}
+      />
       <ChartCard title="各客户合约覆盖率" option={coverageOption} loading={isLoading} height={360} />
       <ChartCard title="各客户持仓电量" option={volumeOption} loading={isLoading} height={360} />
       <Card size="small" title="持仓合约明细" style={{ marginBottom: 16 }}>

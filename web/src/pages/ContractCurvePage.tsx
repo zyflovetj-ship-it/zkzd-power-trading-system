@@ -76,6 +76,47 @@ export default function ContractCurvePage() {
 
   const daily = result?.daily_contracts ?? [];
   const s = result?.summary;
+  const [dayIdx, setDayIdx] = useState(0);
+
+  const timeLabels = Array.from({ length: 96 }, (_, i) => {
+    const h = Math.floor(i / 4);
+    const m = (i % 4) * 15;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  });
+  const curDay: any = daily[Math.min(dayIdx, Math.max(daily.length - 1, 0))];
+
+  const dayOption: EChartsOption = useMemo(
+    () => ({
+      color: CHART_COLORS,
+      tooltip: { ...baseTooltip },
+      legend: { ...baseLegend, data: ['合约电量', '实际负荷'] },
+      grid: baseGrid,
+      xAxis: { type: 'category', data: timeLabels, axisLabel: { interval: 7 } },
+      yAxis: { type: 'value', name: '电量(MWh/点)' },
+      series: [
+        { name: '合约电量', type: 'line', smooth: true, showSymbol: false, data: curDay?.points ?? [] },
+        { name: '实际负荷', type: 'line', smooth: true, showSymbol: false, data: curDay?.demand_points ?? [] },
+      ],
+    }),
+    [curDay],
+  );
+
+  const dailyColumns: ColumnsType<any> = [
+    { title: '日期', dataIndex: 'date', width: 110 },
+    { title: '合约电量(MWh)', dataIndex: 'volume_mwh', width: 130,
+      render: (v: number) => (v == null ? '-' : v.toFixed(3)) },
+    { title: '实际负荷(MWh)', dataIndex: 'demand_mwh', width: 130,
+      render: (v: number) => (v == null ? '-' : v.toFixed(3)) },
+    { title: '缺口(MWh)', dataIndex: 'gap_mwh', width: 120,
+      render: (v: number) => (
+        <span style={{ color: v == null ? undefined : v >= 0 ? '#cf1322' : '#389e0d' }}>
+          {v == null ? '-' : v.toFixed(3)}
+        </span>
+      ) },
+    { title: '覆盖率', key: 'cov', width: 100,
+      render: (_: unknown, r: any) =>
+        r.demand_mwh ? ((r.volume_mwh / r.demand_mwh) * 100).toFixed(1) + '%' : '-' },
+  ];
 
   const loadOption: EChartsOption = useMemo(
     () => ({
@@ -171,13 +212,27 @@ export default function ContractCurvePage() {
             ]}
           />
           <ChartCard title={`逐日电量分解（${result.customer_name} · ${ym}）`} option={loadOption} height={360} />
+          <ChartCard
+            title="某日 96 点：合约曲线 vs 实际负荷"
+            option={dayOption}
+            height={320}
+            extra={
+              <Select
+                size="small"
+                style={{ width: 170 }}
+                value={Math.min(dayIdx, Math.max(daily.length - 1, 0))}
+                onChange={(v) => setDayIdx(Number(v))}
+                options={daily.map((d: any, i: number) => ({ label: d.date, value: i }))}
+              />
+            }
+          />
           <Row gutter={16}>
             <Col xs={24} md={12}><ChartCard title="成本构成" option={costOption} height={320} /></Col>
             <Col xs={24} md={12}>
               <Card size="small" title="敏感性分析" style={{ marginBottom: 16 }}>
                 <Space wrap style={{ marginBottom: 12 }}>
                   <Select value={scenarioType} onChange={(v) => setScenarioType(v)} style={{ width: 160 }}
-                    options={[{ label: '价格敏感性', value: 'price_sensitivity' }, { label: '负荷敏感性', value: 'load_sensitivity' }]} />
+                    options={[{ label: '价格敏感性', value: 'price_sensitivity' }, { label: '负荷敏感性', value: 'load_sensitivity' }, { label: '覆盖率敏感性', value: 'coverage_sensitivity' }]} />
                   <Button onClick={loadScenario}>加载</Button>
                 </Space>
                 {scenarioData.length ? (
@@ -188,6 +243,16 @@ export default function ContractCurvePage() {
               </Card>
             </Col>
           </Row>
+          <Card size="small" title="逐日明细（合约 / 负荷 / 缺口）">
+            <Table
+              size="small"
+              rowKey="date"
+              columns={dailyColumns}
+              dataSource={daily}
+              pagination={{ pageSize: 10 }}
+              scroll={{ y: 360 }}
+            />
+          </Card>
         </>
       )}
     </div>

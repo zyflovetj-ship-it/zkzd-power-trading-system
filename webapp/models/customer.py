@@ -66,6 +66,10 @@ class CustomerCreate(BaseModel):
     user_name: str = Field(..., min_length=1, description="客户全称")
     short_name: str = Field(..., min_length=1, description="客户简称")
     user_type: Optional[str] = Field(None, description="客户类型")
+    electricity_type: Optional[str] = Field(
+        None,
+        description="用电类型（两部制/单一制-100千伏安及以上/单一制-100千伏安以下），测算引擎按此取代购电峰谷系数"
+    )
     industry: Optional[str] = Field(None, description="行业")
     voltage: Optional[str] = Field(None, description="电压等级")
     region: Optional[str] = Field(None, description="地区")

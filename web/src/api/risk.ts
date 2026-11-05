@@ -38,3 +38,36 @@ export const getRiskPositionContracts = () =>
 
 export const getRiskExposure = () =>
   apiClient.get<RiskExposureResp>('/api/v1/risk/exposure/').then((r) => r.data);
+
+// ============ 分时持仓曲线（96点） ============
+export interface PositionCurvePoint {
+  time_str: string;
+  position_mwh: number;
+  load_mwh: number;
+  gap_mwh: number;
+}
+
+export interface PositionCurvePeriod {
+  position_mwh: number;
+  load_mwh: number;
+  coverage_ratio: number | null;
+}
+
+export interface PositionCurveResp {
+  date: string | null;
+  points: PositionCurvePoint[];
+  summary: {
+    date?: string;
+    position_mwh?: number;
+    load_mwh?: number;
+    gap_mwh?: number;
+    coverage_ratio?: number | null;
+    by_period?: Record<string, PositionCurvePeriod>;
+  };
+  warnings: string[];
+}
+
+export const getPositionCurve = (date?: string) =>
+  apiClient
+    .get<PositionCurveResp>('/api/v1/risk/position-contracts/curve', { params: { date } })
+    .then((res) => res.data);

@@ -30,4 +30,26 @@ apiClient.interceptors.response.use(
   },
 );
 
+/**
+ * 以带鉴权（Bearer token）的方式下载文件并触发浏览器保存。
+ * 关键：必须用 axios 请求（经拦截器注入 Authorization），不能 window.location 裸跳转，
+ * 否则浏览器导航不带 token，后端 401 Not authenticated。
+ */
+export async function downloadAuthFile(url: string, filename: string): Promise<void> {
+  const res = await apiClient.get(url, { responseType: 'blob' });
+  const blob = new Blob([res.data]);
+  const disposition = res.headers['content-disposition'];
+  let name = filename;
+  if (disposition) {
+    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (match) name = match[1].replace(/['"]/g, '');
+  }
+  const objUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objUrl;
+  a.download = name;
+  a.click();
+  setTimeout(() => window.URL.revokeObjectURL(objUrl), 1000);
+}
+
 export default apiClient;

@@ -35,6 +35,7 @@ logs/
 *.key
 
 # ===== 编辑器 / 系统 =====
+*.tsbuildinfo
 .idea/
 .vscode/
 .DS_Store

@@ -23,6 +23,7 @@ from webapp.api import v1_review_medium_long_term
 from webapp.api import v1_risk_position
 from webapp.api import v1_risk_exposure
 from webapp.api import v1_risk_engine
+from webapp.api import v1_risk_monitor
 from webapp.api import v1_data_validation
 from webapp.api import v1_forecast_accuracy
 from webapp.api import v1_scheduler
@@ -116,6 +117,7 @@ app.include_router(v1_review_medium_long_term.router, prefix="/api/v1/review/med
 app.include_router(v1_risk_position.router, prefix="/api/v1/risk/position-contracts", dependencies=[Depends(get_current_active_user)])
 app.include_router(v1_risk_exposure.router, prefix="/api/v1/risk/exposure", dependencies=[Depends(get_current_active_user)])
 app.include_router(v1_risk_engine.router, prefix="/api/v1", dependencies=[Depends(get_current_active_user)])
+app.include_router(v1_risk_monitor.router, prefix="/api/v1", dependencies=[Depends(get_current_active_user)])
 app.include_router(v1_data_validation.router, prefix="/api/v1", dependencies=[Depends(get_current_active_user)])
 app.include_router(v1_forecast_accuracy.router, prefix="/api/v1", dependencies=[Depends(get_current_active_user)])
 app.include_router(v1_scheduler.router, prefix="/api/v1", dependencies=[Depends(get_current_active_user)])

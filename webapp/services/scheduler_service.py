@@ -53,7 +53,10 @@ class SchedulerService:
 
     def _register_default_tasks(self) -> None:
         """注册默认业务任务"""
-        for task_class in [DataCompletenessCheckTask, ContractExpiryCheckTask, PriceDataSyncTask]:
+        from webapp.tasks.risk_monitor_task import RiskMonitorTask
+        for task_class in [
+            DataCompletenessCheckTask, ContractExpiryCheckTask, PriceDataSyncTask, RiskMonitorTask,
+        ]:
             registry.register(task_class)
 
     def _sync_configs_to_db(self) -> None:
